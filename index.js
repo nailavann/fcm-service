@@ -1,43 +1,41 @@
 require("dotenv").config();
 const express = require("express");
-const admin = require("firebase-admin");
 const app = express();
+const { sendNotification, sendMulticast } = require("./send-service");
 
-// Firebase admin initialization
-admin.initializeApp({
-  credential: admin.credential.cert({
-    projectId: process.env.FIREBASE_PROJECT_ID,
-    clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-    privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, "\n"),
-  }),
-});
+app.use(express.json());
 
-app.use(express.json()); 
-
-app.use((req, res, next) => {
-  console.log("📩 Yeni bir istek alındı:", req.method, req.url);
-  next(); // Bir sonraki middleware'e geç
-});
-
-app.post("/create-user", async (req, res) => {
-  const { email, password } = req.body;
-
+app.post("/send-notification", async (req, res) => {
   try {
-    const userRecord = await admin.auth().createUser({
-      email,
-      password,
-    });
-
+    const response = await sendNotification(req.body);
     res.status(200).json({
-      message: "✅ Kullanıcı başarıyla oluşturuldu",
-      user: userRecord,
+      success: true,
+      messageId: response,
     });
   } catch (error) {
-    res.status(400).json({ error: error.message });
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
+app.post("/send-multicast", async (req, res) => {
+  try {
+    const response = await sendMulticast(req.body);
+    res.status(200).json({
+      success: true,
+      responses: response,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
   }
 });
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`Server ${PORT} portunda çalışıyor`);
+  console.log(`${PORT} is running`);
 });
